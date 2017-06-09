@@ -3,9 +3,12 @@ package de.hackdarmstadt.demo.sdk;
 import org.thethingsnetwork.data.common.Connection;
 import org.thethingsnetwork.data.common.messages.ActivationMessage;
 import org.thethingsnetwork.data.common.messages.DataMessage;
+import org.thethingsnetwork.data.common.messages.DownlinkMessage;
 import org.thethingsnetwork.data.common.messages.RawMessage;
 import org.thethingsnetwork.data.common.messages.UplinkMessage;
 import org.thethingsnetwork.data.mqtt.Client;
+
+import java.util.Random;
 
 /**
  * Minimal class to test the MQTT support for The Things Network Java SDK library.
@@ -16,7 +19,7 @@ public class App {
 	public static final String APPLICATION_KEY = "ttn-account-v2.dIwg3SFt_FLt78TGi-DrrlgNCxI8FjxUdpMm5BqaA0g";
 	public static final String REGION = "eu";
 
-	public static void main( String[] args ) {
+	public static void main( String[] args ) throws Exception {
 		Client client = createClient();
 		registerCallbackHandlers(client);
 		startClient(client);
@@ -92,11 +95,24 @@ public class App {
 		client.onDevice((String devId, String event, RawMessage data) 
 				-> handleDevice(devId, event, data));
 		
-		client.onMessage((String devId, DataMessage data) 
-				-> handleMessage(devId, data));
-		
-		client.onError((Throwable error) 
+		client.onError((Throwable error)
 				-> handleEror(error));
+
+		Random random = new Random();
+		byte[] payload = new byte[3];
+		client.onMessage(null, (String _devId, DataMessage _data) -> {
+			System.out.println("Message: " + _devId + " " + ((UplinkMessage) _data).getCounter());
+			try {
+				// Just send some random 3 bytes to toggle the LED color
+				random.nextBytes(payload);
+				DownlinkMessage msg = new DownlinkMessage(0, payload);
+				System.out.println("Sending to '" + _devId + "': " + String.valueOf(payload));
+				client.send(_devId, msg);
+			} catch (Exception ex) {
+				System.out.println("Response failed: " + ex.getMessage());
+			}
+		});
+
 	}
 
 	/**
